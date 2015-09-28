@@ -110,6 +110,45 @@ function initialize() {
 var tileset = document.createElement("img");
 tileset.src = "tileset.png";
 
+function cellAtPixelCoord(layer, x,y)
+{
+if(x<0 || x>SCREEN_WIDTH || y<0)
+return 1;
+// let the player drop of the bottom of the screen (this means death)
+if(y>SCREEN_HEIGHT)
+return 0;
+return cellAtTileCoord(layer, p2t(x), p2t(y));
+};
+function cellAtTileCoord(layer, tx, ty)
+{
+if(tx<0 || tx>=MAP.tw || ty<0)
+return 1;
+// let the player drop of the bottom of the screen (this means death)
+if(ty>=MAP.th)
+return 0;
+return cells[layer][ty][tx];
+};
+
+function tileToPixel(tile)
+{
+	return tile * TILE;
+};
+
+function pixelToTile(pixel)
+{
+	return Math.floor(pixel/TILE);
+};
+
+function bound(value, min, max)
+{
+	if(value < min)
+		return min;
+	if(value > max)
+		return max;
+	return value;
+}
+
+
 function drawMap()
 {
 	for(var layerIdx=0; layerIdx<LAYER_COUNT; layerIdx++)
@@ -186,8 +225,7 @@ function run()
 	player.update(deltaTime);
 	player.draw();
 	
-	enemy.update(deltaTime);
-	enemy.draw();
+	
 		
 	// update the frame counter 
 	fpsTime += deltaTime;

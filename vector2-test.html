@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+  <head>
+	<style type="text/css">
+		.a-test { display: none; }
+		p { margin: 0; padding: 0; }
+		html, body { padding: 32px; font-family: sans-serif; }
+		th, td { background-color: #ddd; padding: 0.5em; width: 300px; }
+		.check-success { background-color: #6d6; }
+		.check-failed { background-color: #d66; }
+		.codes { font-family: monospace, monospaced; }
+	</style>
+	<script src="vector2.js"></script>
+	<script src="tester.js"></script>
+  </head>
+  <body>
+	<div class='a-test' data-name="Vector 2 Functionality">
+		a = new Vector2();
+		//$ a
+		
+		a.set(5, 3);
+		//$ a.x === 5
+		//$ a.y === 3
+		
+		b = a.copy();
+		//$ a !== b
+		//$ a.x === b.x
+		//$ a.y === b.y
+		
+		b.set(-3, -1);
+		a.add(b);
+		//$ a.x === 2
+		//$ a.y === 2
+		
+		a.subtract(a);
+		//$ a.x === 0
+		//$ a.y === 0
+		
+		a.set(0, -4);
+		a.multiplyScalar(0.5);
+		//$ a.x === 0
+		//$ a.y === -2
+		
+		a.normalize();
+		//$ a.x === 0
+		//$ a.y === -1
+	</div>
+  </body>
+</html>
