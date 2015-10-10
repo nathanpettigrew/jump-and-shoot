@@ -35,8 +35,8 @@ var SCREEN_WIDTH = canvas.width;
 var SCREEN_HEIGHT = canvas.height;
 
 // Level Variables
-var LAYER_COUNT = 3;
-var MAP = { tw: 60, th: 15 };
+var LAYER_COUNT = 2;
+var MAP = { tw: 400, th: 16 };
 var TILE = 35;
 var TILESET_TILE = TILE * 2;
 var TILESET_PADDING = 2;
@@ -44,10 +44,15 @@ var TILESET_SPACING = 2;
 var TILESET_COUNT_X = 14;
 var TILESET_COUNT_Y = 14;
 
-var LAYER_COUNT = 3;
 var LAYER_BACKGOUND = 0;
-var LAYER_PLATFORMS = 1;
+var LAYER_PLATFORMS = 0;
 var LAYER_LADDERS = 2;
+
+var LAYER_OBJECT_ENEMIES = 1;
+var LAYER_OBJECT_TRIGGERS = 4;
+
+var enemies = [];
+
 
 	// arbitrary choice for 1m
 var METER = TILE;
@@ -56,13 +61,16 @@ var GRAVITY = METER * 9.8 * 6;
 	// max horizontal speed (10 tiles per second)
 var MAXDX = METER * 10;
 	// max vertical speed (15 tiles per second)
-var MAXDY = METER * 15;
+var MAXDY = METER * 30;
 	// horizontal acceleration - take 1/2 second to reach maxdx
 var ACCEL = MAXDX * 2;
 	// horizontal friction - take 1/6 second to stop from maxdx
 var FRICTION = MAXDX * 6;
 	// (a large) instantaneous jump impulse
 var JUMP = METER * 1500;
+
+var ENEMY_MAXDX = METER * 5;
+var ENEMY_ACCEL = ENEMY_MAXDX * 2;
 
 // some variables to calculate the Frames Per Second (FPS - this tells use
 // how fast our game is running, and allows us to make the game run at a 
@@ -83,17 +91,20 @@ var musicBackground;
 var sfxFire;
 
 var score = 0;
+var lives = 3;
 
 var cells = []; // the array that holds our simplified collision data
+
+var bullets = [];
 
 function initialize() {
 		for(var layerIdx = 0; layerIdx < LAYER_COUNT; layerIdx++) { // initialize the collision map
 			cells[layerIdx] = [];
 			var idx = 0;
-			for(var y = 0; y < level1.layers[layerIdx].height; y++) {
+			for(var y = 0; y < level2.layers[layerIdx].height; y++) {
 				cells[layerIdx][y] = [];
-				for(var x = 0; x < level1.layers[layerIdx].width; x++) {
-					if(level1.layers[layerIdx].data[idx] != 0) {
+				for(var x = 0; x < level2.layers[layerIdx].width; x++) {
+					if(level2.layers[layerIdx].data[idx] != 0) {
 						// for each tile we find in the layer data, we need to create 4 collisions
 						// (because our collision squares are 35x35 but the tile in the
 						// level are 70x70)
@@ -129,11 +140,35 @@ function initialize() {
 				isSfxPlaying = false;
 			}
 		} );
+		
+	//add enemies
+	idx = 0;
+	for(var y = 0; y < level2.layers[LAYER_OBJECT_ENEMIES].height; y++) {
+		for(var x = 0; x < level2.layers[LAYER_OBJECT_ENEMIES].width; x++) {
+			if(level2.layers[LAYER_OBJECT_ENEMIES].data[idx] != 0) {
+				var px = tileToPixel(x);
+				var py = tileToPixel(y);
+				var e = new Enemy(px, py);
+				enemies.push(e);
+			}
+			idx++;
+		}
+	} 
 }
 
 // load the image to use for the level tiles
 var tileset = document.createElement("img");
 tileset.src = "tileset.png";
+
+var overTitle = document.createElement("img");
+overTitle.src = "end.png";
+
+var heartImage = document.createElement("img");
+heartImage.src = "heart.png";
+
+var STATE_GAME = 0;
+var STATE_GAMEOVER = 1;
+var gameState = STATE_GAME;
 
 function cellAtPixelCoord(layer, x,y)
 {
@@ -153,6 +188,18 @@ if(ty>=MAP.th)
 return 0;
 return cells[layer][ty][tx];
 };
+
+function intersects(x1, y1, w1, h1, x2, y2, w2, h2)
+{
+	if(y2 + h2 < y1 ||
+		x2 + w2 < x1 ||
+		x2 > x1 + w1 ||
+		y2 > y1 + h1)
+	{
+		return false;
+	}
+	return true;
+}
 
 function tileToPixel(tile)
 {
@@ -198,17 +245,21 @@ function drawMap()
 
 	for( var layerIdx=0; layerIdx < LAYER_COUNT; layerIdx++ )
 	{
-		for( var y = 0; y < level1.layers[layerIdx].height; y++ )
+		if(level2.layers[layerIdx].visible == false)
 		{
-			var idx = y * level1.layers[layerIdx].width + startX;
+			continue;
+		}
+		for( var y = 0; y < level2.layers[layerIdx].height; y++ )
+		{
+			var idx = y * level2.layers[layerIdx].width + startX;
 	
 			for( var x = startX; x < startX + maxTiles; x++ )
 			{
-				if( level1.layers[layerIdx].data[idx] != 0 )
+				if( level2.layers[layerIdx].data[idx] != 0 )
 				{
 					// the tiles in the Tiled map are base 1 (meaning a value of 0 means no tile),
 					// so subtract one from the tileset id to get the correct tile
-					var tileIndex = level1.layers[layerIdx].data[idx] - 1;
+					var tileIndex = level2.layers[layerIdx].data[idx] - 1;
 					var sx = TILESET_PADDING + (tileIndex % TILESET_COUNT_X) *
 					(TILESET_TILE + TILESET_SPACING);
 					var sy = TILESET_PADDING + (Math.floor(tileIndex / TILESET_COUNT_Y)) *
@@ -222,8 +273,21 @@ function drawMap()
 	}
 }
 
-
 function run()
+{
+	var deltaTime = getDeltaTime();
+	switch(gameState)
+	{
+	case STATE_GAME:
+		runGame(deltaTime);
+		break;
+	case STATE_GAMEOVER:
+		runGameOver(deltaTime);
+		break;
+	}
+}
+
+function runGame(deltaTime)
 {
 	context.fillStyle = "#ccc";		
 	context.fillRect(0, 0, canvas.width, canvas.height);
@@ -256,6 +320,93 @@ function run()
 	context.fillStyle = "#f00";
 	context.font="14px Arial";
 	context.fillText("FPS: " + fps, 5, 20, 100);
+	
+	for(var i=0; i<enemies.length; i++)
+	{
+		enemies[i].update(deltaTime);
+		enemies[i].draw();
+		if(player.isAlive == true){
+			if(intersects( player.position.x, player.position.y, TILE, TILE,
+				enemies[i].position.x, enemies[i].position.y, TILE, TILE) == true)
+			{
+				// kill both the bullet and the enemy
+				enemies.splice(i, 1);		
+				// increment the player score
+				lives -= 1;
+				break;
+			}
+		}
+	}
+	
+	var hit = false;
+	for(var i=0; i<bullets.length; i++)
+	{
+		bullets[i].update(deltaTime);
+		if( bullets[i].position.x - worldOffsetX < 0 ||
+			bullets[i].position.x - worldOffsetX > SCREEN_WIDTH)
+		{
+			hit = true;
+		}
+		
+		for(var j=0; j<enemies.length; j++)
+		{
+			if(intersects( bullets[i].position.x, bullets[i].position.y, TILE, TILE,
+				enemies[j].position.x, enemies[j].position.y, TILE, TILE) == true)
+			{
+				// kill both the bullet and the enemy
+				enemies.splice(j, 1);
+				hit = true;
+				// increment the player score
+				score += 1;
+				break;
+			}
+		}
+		if(hit == true)
+		{
+			bullets.splice(i, 1);
+			break;
+		}
+		bullets[i].draw();
+	}
+	
+	// life counter
+	for(var i=0; i<lives; i++)
+	{
+		context.drawImage(heartImage, 20 + ((heartImage.width+2)*i), 10);
+	}
+
+	if (player.position.y > 520) {
+		lives -= 1;
+		player.position.set( 9*TILE, 0*TILE );
+	}
+	
+	if (lives == 0){
+		gameState = STATE_GAMEOVER;
+	}
+}
+
+
+function initNewGame(){
+	player.position.set( 9*TILE, 0*TILE );
+	var lives = 3;
+	gameState = STATE_GAME;
+}
+
+
+
+function runGameOver(deltaTime)
+{
+	context.drawImage(overTitle,0,0);
+	context.font="48px Arial";
+	context.fillStyle = "white";
+	context.fillText("GAME OVER", 160, 240);
+	player.position.set( 9*TILE, 0*TILE );
+	var lives = 3;
+
+	if(keyboard.isKeyDown(keyboard.KEY_ENTER) == true) {
+		gameState = STATE_GAME;
+	}
+	
 }
 
 initialize();

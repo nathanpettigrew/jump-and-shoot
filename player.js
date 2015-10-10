@@ -30,7 +30,7 @@ var Player = function() {
 	}
 	
 	this.position = new Vector2();
-	this.position.set( 9*TILE, 0*TILE );
+	this.position.set( 9*TILE, 5*TILE );
 	
 	this.width = 159;
 	this.height = 163;
@@ -39,6 +39,8 @@ var Player = function() {
 	
 	this.falling = true;
 	this.jumping = false;
+	
+	this.isAlive = true;
 
 	this.direction = LEFT;
 	
@@ -99,7 +101,14 @@ Player.prototype.update = function(deltaTime)
 		sfxFire.play();
 		this.cooldownTimer = 0.3;
 		
-		// Shoot a bullet
+		if(this.direction == RIGHT){
+			var newbullet = new Bullet(this.position.x, this.position.y, true);
+			bullets.push(newbullet)
+		} else {
+			var newbullet = new Bullet(this.position.x, this.position.y, false);
+			bullets.push(newbullet)
+		}
+		
 	}
 
 	var wasleft = this.velocity.x < 0;
